@@ -29,11 +29,20 @@ BOOL GetProcessId(const WCHAR name[], PROCESSENTRY32W* pProcessEntry) {
     return false;
 }
 
+void printUsage(char* path_to_file) {
+    printf(
+        "usage: %s <process-name> <path-to-dll> <method>\n\n"\
+        "Methods:\n"
+        "\tCRTE_LLA - CreateRemoteThreadEx with LoadLibraryA\n"
+        "\tTH_LLA - ThreadHijack with LoadLibraryA\n"
+        , path_to_file);
+}
 
 
 std::tuple<WCHAR*, char*, char*> getArguments(int argc, char** argv) {
     if (argc < 4) {
-        exit(1, "usage: %s <process-name> <path-to-dll> <method>", argv[0]);
+        printUsage(argv[0]);
+        exit(1, "Wrong arguments ...");
     }
 
     char* process_name = argv[1];
@@ -70,18 +79,19 @@ int main(int argc, char** argv)
 
     info("Injecting %s into %s using %s...\n", wPathToDll, wProcessName, method);
 
-    if (strncmp(method, "LoadLibraryA", sizeof("LoadLibraryA")) == 0) {
+    if (strncmp(method, "CRTE_LLA", sizeof("CRTE_LLA")) == 0) {
         if (!CreateRemoteThreadEx_LLAInjection(hProcess, wPathToDll)) {
             exit(1, "LoadLibraryAInjection Failed!\n");
         }
     }
-    else if (strncmp(method, "ThreadHijack", sizeof("ThreadHijack")) == 0) {
+    else if (strncmp(method, "TH_LLA", sizeof("TH_LLA")) == 0) {
         if (!ThreadHijack_LLAInjection(hProcess, &process_entry, wPathToDll)) {
             exit(1, "ThreadHijack injection Failed!\n");
         }
     }
     else {
-        exit(1, "Method not found: %s", method);
+        printUsage(argv[0]);
+        exit(1, "Method not found: %s\n", method);
     }
 
     info("Success :)");
