@@ -108,7 +108,7 @@ bool ThreadHijack_LLAInjection(HANDLE hProcess, PROCESSENTRY32W* process_entry, 
 
     t_LoadLibraryA* pLoadLibraryA = (t_LoadLibraryA*)GetProcAddress(hKernel, "LoadLibraryA");
 
-    
+
     // Write DLL path into process
     void* pDllPath = VirtualAllocEx(hProcess, NULL, strlen(dll_path), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     if (!pDllPath) {
@@ -178,7 +178,7 @@ bool ThreadHijack_LLAInjection(HANDLE hProcess, PROCESSENTRY32W* process_entry, 
 
         PEB peb = { sizeof(PEB) };
 
-        if (!ReadProcessMemory(hProcess, pPEB, &peb, sizeof(peb), NULL)) {
+        if (!ReadProcessMemory(hProcess, pPEB, &peb, sizeof(PEB), NULL)) {
             error("Could not read PEB\n");
             continue;
         }
@@ -191,7 +191,7 @@ bool ThreadHijack_LLAInjection(HANDLE hProcess, PROCESSENTRY32W* process_entry, 
         debug("Local shellcode at 0x%p\n", shell_code);
         int shell_code_size = sizeof(shell_code);
         debug("ShellCodeSize: %d\n", shell_code_size);
-        char abc[120] = "abc";
+        
         size_t shellcode_size = 41;
         buildShellCode(shell_code, shell_code_size, (DWORD64*)&pDllPath, (DWORD64*)&pLoadLibraryA, &current_rip);
 

@@ -55,7 +55,8 @@ std::tuple<WCHAR*, char*, char*> getArguments(int argc, char** argv) {
         exit(1, "MultibyteToWideChar size determination failed\n");
     }
 
-    WCHAR* wProcessName = (WCHAR*)malloc(process_name_wchar_size);
+//    WCHAR* wProcessName = (WCHAR*)malloc(process_name_wchar_size);
+    WCHAR* wProcessName = (WCHAR*)calloc(process_name_wchar_size, sizeof(WCHAR));
 
     if (MultiByteToWideChar(CP_ACP, 0, process_name, -1, wProcessName, process_name_wchar_size) == 0) {
         exit(1, "MultiByteToWideChar failed for process_name\n");
@@ -73,7 +74,6 @@ int main(int argc, char** argv)
     if (!GetProcessId(wProcessName, &process_entry)) {
         exit(1, "Could not get process id!\n");
     }
-
     HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, 0, process_entry.th32ProcessID);
 
     if (!hProcess) {
@@ -81,6 +81,7 @@ int main(int argc, char** argv)
     }
 
     info("Injecting %s into %s using %s...\n", wPathToDll, wProcessName, method);
+    
 
     if (strncmp(method, "CRTE_LLA", sizeof("CRTE_LLA")) == 0) {
         if (!CreateRemoteThreadEx_LLAInjection(hProcess, wPathToDll)) {
