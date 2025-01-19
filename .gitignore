@@ -1,3 +1,8 @@
 .vs/
 DLLInjector/x64/
 DLLInjector/x32/
+DLLInjector/.vs/
+
+HelloWorldDLL/x64/
+HelloWorldDLL/x32/
+HelloWorldDLL/.vs/
