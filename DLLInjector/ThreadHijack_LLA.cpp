@@ -20,6 +20,52 @@ TNtQueryInformationThread(
 
 typedef bool (*t_LoadLibraryA)(char*);
 
+
+
+/// <summary>
+/// Builds the shellcode
+/// </summary>
+/// <param name="outBuffer">pointer to the to-be-populated buffer. Should be at least 128 bytes</param>
+/// <param name="outBuffer">pointer to loadLibraryA function in remote process (as its in kernel32.dll its the same in all processes. So just take yours)</param>
+/// <param name="pShellCode">pointer to allocated memory for shellcode</param>
+/// <param name="pSavedEIP">pointer to saved EIP to continue seamlessly</param>
+/// <returns>size of shellcode</returns>
+size_t buildShellCode(char outBuffer[], size_t outBufferSize, DWORD64* pDllPath, DWORD64* pLoadLibraryA, DWORD64* pSavedEIP) {
+
+    // Call LoadLibraryA using fastcall calling convention
+    unsigned char ShellCode[48] = {
+        0x50, 0x52, 0x51,                                                    // push rax, push rdx, push rcx
+
+        // Main code
+        0x48, 0xB9,
+        0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,                      // mov rcx, <8-byte value> (DllPath)
+        0x48, 0xB8,
+        0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,                      // mov rax, <8-byte value> (LoadLibraryA)
+        0xFF, 0xD0,                                                          // call rax (indirect call to LoadLibraryA via rax)
+
+        0x59, 0x5A, 0x58,                                                    // pop rcx, pop rdx, pop rax
+        0x48, 0xB8,                                                         
+        0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,                      // mov rax, <8-byte value> (pMain)
+        0xFF, 0xE0,                                                          // Jump pMain
+        0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00                                                                 // Null terminator
+    };
+
+    // Populate shellcode with correct values
+    // memcpy is taking care of BE -> LE conversion
+    memcpy_s(&ShellCode[5], 8, pDllPath, 8);
+    memcpy_s(&ShellCode[15], 8, pLoadLibraryA, 8);
+    memcpy_s(&ShellCode[30], 8, pSavedEIP, 8);
+
+    size_t shellcode_size = 41;
+
+
+    memcpy_s(outBuffer, outBufferSize, ShellCode, shellcode_size);
+
+
+    return shellcode_size;
+}
+
 bool ThreadHijack_LLAInjection(HANDLE hProcess, PROCESSENTRY32W* process_entry, char dll_path[]) {
     debug("Starting HijackThread Injection ...\n");
 
@@ -75,75 +121,6 @@ bool ThreadHijack_LLAInjection(HANDLE hProcess, PROCESSENTRY32W* process_entry, 
         return FALSE;
     }
 
- //   unsigned long long pDllPathLE = _byteswap_uint64((unsigned long long)pDllPath);
- //   unsigned long long ploadLibraryLE = _byteswap_uint64((unsigned long long)pLoadLibraryA);
-    unsigned long long pMain = 0x00007FF65D7110A0;
-
-    unsigned char ShellCode[] = {
-        0x50, 0x52, 0x51,                 // push rax, push rdx, push rcx
-        0x48, 0xB9,                       
-        0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,                      // mov rcx, <8-byte value> (address)
-//        (unsigned char)((unsigned long long)pDllPath & 0xFF),        // Least significant byte
-//        (unsigned char)(((unsigned long long)pDllPath >> 8) & 0xFF),
-//        (unsigned char)(((unsigned long long)pDllPath >> 16) & 0xFF),
-//        (unsigned char)(((unsigned long long)pDllPath >> 24) & 0xFF),
-//        (unsigned char)(((unsigned long long)pDllPath >> 32) & 0xFF),
-//        (unsigned char)(((unsigned long long)pDllPath >> 40) & 0xFF),
-//        (unsigned char)(((unsigned long long)pDllPath >> 48) & 0xFF),
-//        (unsigned char)(((unsigned long long)pDllPath >> 56) & 0xFF), // Most significant byte
-        0x48, 0xB8,                       // mov rax, <8-byte value> (another address or pointer)
-        0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,                      // mov rcx, <8-byte value> (address)
-
-//        (unsigned char)((unsigned long long)pLoadLibraryA & 0xFF),    // Least significant byte
-//        (unsigned char)(((unsigned long long)pLoadLibraryA >> 8) & 0xFF),
-//        (unsigned char)(((unsigned long long)pLoadLibraryA >> 16) & 0xFF),
-//        (unsigned char)(((unsigned long long)pLoadLibraryA >> 24) & 0xFF),
-//        (unsigned char)(((unsigned long long)pLoadLibraryA >> 32) & 0xFF),
-//        (unsigned char)(((unsigned long long)pLoadLibraryA >> 40) & 0xFF),
-//        (unsigned char)(((unsigned long long)pLoadLibraryA >> 48) & 0xFF),
-//        (unsigned char)(((unsigned long long)pLoadLibraryA >> 56) & 0xFF), // Most significant byte
-        0xFF, 0xD0,                       // call rax (indirect call via rax)
-        0x59, 0x5A, 0x58,                 // pop rcx, pop rdx, pop rax
-        0x48, 0xB8, // mov rax, pMain
-        0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,                      // mov rcx, <8-byte value> (address)
-//        (unsigned char)((unsigned long long)pMain & 0xFF),    // Least significant byte
-//        (unsigned char)(((unsigned long long)pMain >> 8) & 0xFF),
-//        (unsigned char)(((unsigned long long)pMain >> 16) & 0xFF),
-//        (unsigned char)(((unsigned long long)pMain >> 24) & 0xFF),
-//        (unsigned char)(((unsigned long long)pMain >> 32) & 0xFF),
-//        (unsigned char)(((unsigned long long)pMain >> 40) & 0xFF),
-//        (unsigned char)(((unsigned long long)pMain >> 48) & 0xFF),
-//        (unsigned char)(((unsigned long long)pMain >> 56) & 0xFF), // Most significant byte
-        0xFF, 0xE0,                       // Jump pMain
-        0x00                              // Null terminator
-    };
-
-    // Populate shellcode with correct values
-    // memcpy is taking care of BE -> LE conversion
-    memcpy_s(&ShellCode[5], 8, &pDllPath, 8);
-    memcpy_s(&ShellCode[15], 8, &pLoadLibraryA, 8);
-    memcpy_s(&ShellCode[30], 8, &pMain, 8);
-    
-
-    size_t shellcode_size = 41;
-
-
-    void* pShellCode = VirtualAllocEx(hProcess, NULL, shellcode_size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-
-    debug("Allocated shellcode memory at 0x%x\n", pShellCode);
-
-    if (!pShellCode) {
-        error("Could not allocate shellcode memory in remote process\n");
-        return FALSE;
-    }
-
-    if (!WriteProcessMemory(hProcess, pShellCode, ShellCode, shellcode_size, NULL)) {
-        error("Failed to write shellcode (%s) to allocated memory (0x%p)\n", ShellCode, pShellCode);
-        return FALSE;
-    }
-
-    debug("Wrote shellcode to 0x%p\n", pShellCode);
-
 
     // Iterate over all threads (Currently break after first one)
     do {
@@ -161,7 +138,10 @@ bool ThreadHijack_LLAInjection(HANDLE hProcess, PROCESSENTRY32W* process_entry, 
         }
 
         // Suspend thread to update context
-        SuspendThread(hThread);
+        if (SuspendThread(hThread) < 0) {
+            error("Could not suspend thread\n");
+            continue;
+        }
 
 
         // Get thread context
@@ -203,6 +183,36 @@ bool ThreadHijack_LLAInjection(HANDLE hProcess, PROCESSENTRY32W* process_entry, 
             continue;
         }
 
+        DWORD64 current_rip = cCurrentThread.Rip;
+
+        debug("Saved RIP: 0x%p\n", current_rip);
+
+        char shell_code[128] = { 0x0 };
+        debug("Local shellcode at 0x%p\n", shell_code);
+        int shell_code_size = sizeof(shell_code);
+        debug("ShellCodeSize: %d\n", shell_code_size);
+        char abc[120] = "abc";
+        size_t shellcode_size = 41;
+        buildShellCode(shell_code, shell_code_size, (DWORD64*)&pDllPath, (DWORD64*)&pLoadLibraryA, &current_rip);
+
+
+        void* pShellCode = VirtualAllocEx(hProcess, NULL, shellcode_size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+
+        debug("Allocated shellcode memory at 0x%x\n", pShellCode);
+
+        if (!pShellCode) {
+            error("Could not allocate shellcode memory in remote process\n");
+            return FALSE;
+        }
+
+        if (!WriteProcessMemory(hProcess, pShellCode, shell_code, shellcode_size, NULL)) {
+            error("Failed to write shellcode (%s) to allocated memory (0x%p)\n", shell_code, pShellCode);
+            return FALSE;
+        }
+
+        debug("Wrote shellcode to 0x%p\n", pShellCode);
+
+
 
         cCurrentThread.Rip = (DWORD64)pShellCode;
         debug("Setting Rip to 0x%p\n", cCurrentThread.Rip);
@@ -212,10 +222,19 @@ bool ThreadHijack_LLAInjection(HANDLE hProcess, PROCESSENTRY32W* process_entry, 
             error("Could not set thread context\n");
             continue;
         }
-
+        
         debug("Successfully updated thread context\n");
-        MessageBoxA(NULL, "Click to resume thread", "Thread Suspended", MB_OK);
-        ResumeThread(hThread);
+        
+        
+        if (MessageBoxA(NULL, "Click to resume thread", "Thread Suspended", MB_OK) < 0) {
+            error("MessageBoxA failed\n");
+            continue;
+        }
+
+        if (ResumeThread(hThread) < 0) {
+            error("ResumeThread failed\n");
+            continue;
+        }
 
         debug("Resumed thread: %d\n", eThread.th32ThreadID);
 

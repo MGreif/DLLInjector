@@ -42,7 +42,10 @@ void printUsage(char* path_to_file) {
 std::tuple<WCHAR*, char*, char*> getArguments(int argc, char** argv) {
     if (argc < 4) {
         printUsage(argv[0]);
-        exit(1, "Wrong arguments ...");
+        argv[1] = (char*)"DebugMeSimple.exe";
+        argv[2] = (char*)"P:\projects\DebugMeSimple\build\x64\Solver.dll";
+        argv[3] = (char*)"TH_LLA";
+      //  exit(1, "Wrong arguments ...");
     }
 
     char* process_name = argv[1];
