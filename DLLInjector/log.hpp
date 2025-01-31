@@ -15,7 +15,7 @@ static constexpr void log(const char* type, const char* color, const char* s, Ar
     printf("%s]%s ", type, RESET_COLOR);
     printf(s, a...);
 }
-template <typename ...Args> static constexpr void error(const char* s, Args ...a) { log("ERROR", ERROR_COLOR, s, a...); log("ERROR", ERROR_COLOR, "%d\n", GetLastError()); }
+template <typename ...Args> static constexpr void error(const char* s, Args ...a) { log("ERROR", ERROR_COLOR, s, a...); if (GetLastError() > 0) log("ERROR", ERROR_COLOR, "%d\n", GetLastError()); }
 template <typename ...Args> static constexpr void warning(const char* s, Args ...a) { log("WARNING", WARNING_COLOR, s, a...); }
 template <typename ...Args> static constexpr void info(const char* s, Args ...a) { log("INFO", INFO_COLOR, s, a...); }
 template <typename ...Args> static constexpr void debug(const char* s, Args ...a) { log("DEBUG", DEBUG_COLOR, s, a...); }
@@ -23,7 +23,7 @@ template <typename ...Args> static constexpr void debug(const char* s, Args ...a
 
 template <typename ...Args> static constexpr void exit(int status, const char* s, Args ...a) {
     error(s, a...);
-    getchar();
+    //getchar();
     ExitProcess(status);
 }
 
